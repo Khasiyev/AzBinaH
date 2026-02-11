@@ -12,6 +12,7 @@ using Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using Persistence.Context;
 using Persistence.Repositories;
 using Persistence.Services;
@@ -30,7 +31,37 @@ public static class ServiceCollectionExtensions
             });
 
         services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen(c => c.CustomSchemaIds(t => t.FullName));
+        services.AddSwaggerGen(c =>
+        {
+            c.CustomSchemaIds(t => t.FullName);
+
+            // ✅ JWT Security Definition (Authorize düyməsi üçün)
+            c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            {
+                Name = "Authorization",
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "JWT",
+                In = ParameterLocation.Header,
+                Description = "JWT yaz: Bearer {token}"
+            });
+
+            // ✅ JWT Security Requirement (bütün endpoint-lərə tətbiq)
+            c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new List<string>()
+        }
+    });
+        });
 
         return services;
     }
@@ -88,6 +119,10 @@ public static class ServiceCollectionExtensions
         // 7) Servislər
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuthService, AuthService>();
+
+        // Refresh token repo + service + Jwt token generator +
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
         // AutoMapper
         services.AddAutoMapper(cfg =>
