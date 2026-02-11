@@ -1,0 +1,23 @@
+﻿using Domain.Enums;
+using System.Net.Sockets;
+
+namespace Domain.Entities;
+
+public class PropertyAd: BaseEntity<int>
+{
+    public string Title { get; set; } = null!;
+    public string? Description { get; set; }
+    public decimal Price { get; set; }
+    public bool IsNew { get; set; }
+    public bool IsRenovated { get; set; }
+    public bool IsMortgage { get; set; }
+    public bool IsTitleDeedAvailable { get; set; }
+    public int RoomCount { get; set; }
+    public decimal AreaInSquareMeters { get; set; }
+    public string Location { get; set; } = null!;
+    public int? FloorNumber { get; set; }
+    public int? TotalFloors { get; set; }
+    public PropertyCategory PropertyCategory { get; set; }
+    public OfferType OfferType { get; set; }
+    public ICollection<PropertyMedia>? MediaItems { get; set; } = new List<PropertyMedia>();
+}
