@@ -3,7 +3,9 @@ using Application.Abstracts.Services;
 using Application.Dtos.PropertyAdDtos;
 using Application.Shared.Helpers.Responses;
 using AutoMapper;
+using Domain.Constants;
 using Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers;
@@ -29,6 +31,7 @@ public class PropertyAdController : ControllerBase
         _mapper = mapper;
     }
 
+    // GET-lər açıq qala bilər
     [HttpGet]
     public async Task<ActionResult<BaseResponse<List<GetAllPropertyAdResponse>>>> GetAllAsync(CancellationToken ct)
     {
@@ -46,7 +49,8 @@ public class PropertyAdController : ControllerBase
         return Ok(BaseResponse<GetByIdPropertyAdResponse>.Ok(propertyAd));
     }
 
-    //Create
+    // Create — login tələb edir
+    [Authorize(Policy = Policies.ManageProperties)]
     [HttpPost]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<BaseResponse>> CreateAsync(
@@ -89,7 +93,8 @@ public class PropertyAdController : ControllerBase
         }
     }
 
-    //Update
+    // Update — login tələb edir
+    [Authorize(Policy = Policies.ManageProperties)]
     [HttpPut("{id:int}")]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<BaseResponse>> UpdateAsync(
@@ -138,6 +143,8 @@ public class PropertyAdController : ControllerBase
         }
     }
 
+    // Delete — login tələb edir
+    [Authorize(Policy = Policies.ManageProperties)]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult<BaseResponse>> DeleteAsync(int id, CancellationToken ct)
     {
@@ -149,7 +156,8 @@ public class PropertyAdController : ControllerBase
         return Ok(BaseResponse.Ok("Deleted successfully"));
     }
 
-    //POST: media (tək fayl)
+    // POST: media (tək fayl) — login tələb edir
+    [Authorize(Policy = Policies.ManageProperties)]
     [HttpPost("{propertyId:int}/media")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadSingleMedia(int propertyId, IFormFile file, CancellationToken ct)
@@ -181,7 +189,7 @@ public class PropertyAdController : ControllerBase
         return Ok(BaseResponse<string>.Ok(objectKey));
     }
 
-    //GET: media
+    // GET: media açıq qala bilər
     [HttpGet("{propertyId:int}/media")]
     public async Task<ActionResult<BaseResponse<List<PropertyMediaItemDto>>>> GetMedia(int propertyId, CancellationToken ct)
     {
@@ -190,7 +198,8 @@ public class PropertyAdController : ControllerBase
         return Ok(BaseResponse<List<PropertyMediaItemDto>>.Ok(dto));
     }
 
-    //DELETE: media{id}
+    // DELETE: media — login tələb edir
+    [Authorize(Policy = Policies.ManageProperties)]
     [HttpDelete("media/{id:int}")]
     public async Task<IActionResult> DeleteMedia(int id, CancellationToken ct)
     {

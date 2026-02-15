@@ -1,6 +1,7 @@
 ﻿using Application.Abstracts.Services;
 using Application.Dtos.AuthDtos;
 using Application.Options;
+using Domain.Constants;
 using Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
@@ -13,7 +14,7 @@ public class AuthService : IAuthService
     private readonly SignInManager<User> _signInManager;
     private readonly IJwtTokenGenerator _jwtGenerator;
     private readonly IRefreshTokenService _refreshTokenService;
-    private readonly JwtOptions _jwt;
+    private readonly JwtOptions _jwtOpt;
 
     public AuthService(
         UserManager<User> userManager,
@@ -26,16 +27,20 @@ public class AuthService : IAuthService
         _signInManager = signInManager;
         _jwtGenerator = jwtGenerator;
         _refreshTokenService = refreshTokenService;
-        _jwt = jwtOptions.Value;
+        _jwtOpt = jwtOptions.Value;
     }
 
-    public async Task<(bool Success, string? Error)> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
+    // ✅ RegisterAsync: User yarat + RoleNames.User ver
+    public async Task<(bool Success, string? Error)> RegisterAsync(
+        RegisterRequest request,
+        CancellationToken ct = default)
     {
         var user = new User
         {
-            UserName = request.UserName,
+            UserName = request.UserName,    // istəsən: request.Email
             Email = request.Email,
-            FullName = request.FullName
+            FullName = request.FullName,
+            EmailConfirmed = true
         };
 
         var result = await _userManager.CreateAsync(user, request.Password);
@@ -46,9 +51,17 @@ public class AuthService : IAuthService
             return (false, error);
         }
 
+        var roleRes = await _userManager.AddToRoleAsync(user, RoleNames.User);
+        if (!roleRes.Succeeded)
+        {
+            var error = string.Join("; ", roleRes.Errors.Select(e => e.Description));
+            return (false, error);
+        }
+
         return (true, null);
     }
 
+    // ✅ LoginAsync: FindByEmail/FindByName + CheckPasswordSignInAsync + BuildTokenResponseAsync
     public async Task<TokenResponse?> LoginAsync(LoginRequest request, CancellationToken ct = default)
     {
         var user =
@@ -69,6 +82,7 @@ public class AuthService : IAuthService
         return await BuildTokenResponseAsync(user, ct);
     }
 
+    // ✅ RefreshTokenAsync: validate/consume + BuildTokenResponseAsync
     public async Task<TokenResponse?> RefreshTokenAsync(string refreshToken, CancellationToken ct = default)
     {
         var user = await _refreshTokenService.ValidateAndConsumeAsync(refreshToken, ct);
@@ -78,16 +92,24 @@ public class AuthService : IAuthService
         return await BuildTokenResponseAsync(user, ct);
     }
 
+    // ✅ BuildTokenResponseAsync: roles + access token + refresh token + expires
     private async Task<TokenResponse> BuildTokenResponseAsync(User user, CancellationToken ct)
     {
-        var accessToken = _jwtGenerator.GenerateToken(user);
-        var newRefreshToken = await _refreshTokenService.CreateAsync(user, ct);
+        var roles = await _userManager.GetRolesAsync(user);
+
+        var accessToken = _jwtGenerator.GenerateAccessToken(user, roles);
+
+        // Variant A (tövsiyə): RefreshTokenService özü JwtOptions-dan refresh müddətini götürür
+        var refreshToken = await _refreshTokenService.CreateAsync(user, ct);
+
+        // Variant B: əgər səndə CreateAsync(user, minutes, ct) varsa, bunu yaz:
+        // var refreshToken = await _refreshTokenService.CreateAsync(user, _jwtOpt.RefreshExpirationMinutes, ct);
 
         return new TokenResponse
         {
             AccessToken = accessToken,
-            RefreshToken = newRefreshToken,
-            ExpiresAtUtc = DateTime.UtcNow.AddMinutes(_jwt.ExpirationMinutes)
+            RefreshToken = refreshToken,
+            ExpiresAtUtc = DateTime.UtcNow.AddMinutes(_jwtOpt.ExpirationMinutes)
         };
     }
 }

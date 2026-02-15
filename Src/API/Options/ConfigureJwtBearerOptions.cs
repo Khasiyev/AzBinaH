@@ -6,7 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace API.Options;
 
-public class ConfigureJwtBearerOptions : IConfigureOptions<JwtBearerOptions>
+public class ConfigureJwtBearerOptions : IConfigureNamedOptions<JwtBearerOptions>
 {
     private readonly JwtOptions _jwt;
 
@@ -14,9 +14,16 @@ public class ConfigureJwtBearerOptions : IConfigureOptions<JwtBearerOptions>
     {
         _jwt = jwt.Value;
     }
+    public void Configure(string? name, JwtBearerOptions options)
+    {
+        Configure(options);
+    }
 
     public void Configure(JwtBearerOptions options)
     {
+        if(string.IsNullOrWhiteSpace(_jwt.Secret))
+            throw new InvalidOperationException("JWT Secret is missing in confugiration section 'Jwt'.");
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
