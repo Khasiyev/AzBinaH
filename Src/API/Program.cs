@@ -17,6 +17,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ExceptionMiddleware>();
 
+app.SeedAuth();
+app.UseApplicationPipeline();
+
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();

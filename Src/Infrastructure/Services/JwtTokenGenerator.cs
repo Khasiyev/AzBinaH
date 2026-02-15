@@ -11,62 +11,36 @@ namespace Infrastructure.Services;
 
 public class JwtTokenGenerator : IJwtTokenGenerator
 {
-    private readonly JwtOptions _options;
+    private readonly JwtOptions _opt;
 
-    public JwtTokenGenerator(IOptions<JwtOptions> options)
+    public JwtTokenGenerator(IOptions<JwtOptions> opt)
     {
-        _options = options.Value;
+        _opt = opt.Value;
     }
 
-    public string GenerateToken(int userId, string email, string fullName)
+    public string GenerateAccessToken(User user, IEnumerable<string> roles)
     {
-        var keyBytes = Encoding.UTF8.GetBytes(_options.Secret);
+        var keyBytes = Encoding.UTF8.GetBytes(_opt.Secret);
         var securityKey = new SymmetricSecurityKey(keyBytes);
-        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+        var creds = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>
         {
-            new(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new(JwtRegisteredClaimNames.Email, email),
+            new(JwtRegisteredClaimNames.Sub, user.Id),
+            new(JwtRegisteredClaimNames.Email, user.Email ?? ""),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new("fullName", fullName)
+            new("fullName", user.FullName ?? "")
         };
 
-        var token = new JwtSecurityToken(
-            issuer: _options.Issuer,
-            audience: _options.Audience,
-            claims: claims,
-            notBefore: DateTime.UtcNow,
-            expires: DateTime.UtcNow.AddMinutes(_options.ExpirationMinutes),
-            signingCredentials: credentials
-        );
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
-    }
-    public string GenerateToken(User user)
-    {
-        if (user == null)
-            throw new ArgumentNullException(nameof(user));
-
-        var keyBytes = Encoding.UTF8.GetBytes(_options.Secret);
-        var securityKey = new SymmetricSecurityKey(keyBytes);
-        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
-        var claims = new List<Claim>
-    {
-        new(JwtRegisteredClaimNames.Sub, user.Id), // string Id
-        new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
-        new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-        new("fullName", user.FullName ?? string.Empty)
-    };
+        foreach (var role in roles)
+            claims.Add(new Claim(ClaimTypes.Role, role));
 
         var token = new JwtSecurityToken(
-            issuer: _options.Issuer,
-            audience: _options.Audience,
+            issuer: _opt.Issuer,
+            audience: _opt.Audience,
             claims: claims,
-            notBefore: DateTime.UtcNow,
-            expires: DateTime.UtcNow.AddMinutes(_options.ExpirationMinutes),
-            signingCredentials: credentials
+            expires: DateTime.UtcNow.AddMinutes(_opt.ExpirationMinutes),
+            signingCredentials: creds
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
